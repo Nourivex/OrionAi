@@ -1,0 +1,246 @@
+/* index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom global styles */
+/* Base uses CSS variables provided by theme classes */
+body {
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Smooth transitions for theme switches */
+:root {
+  --theme-transition: 300ms;
+}
+
+/* Focus color used across inputs (can be overridden per theme) */
+:root {
+  --theme-focus: #0EA5E9;
+}
+
+html, body, .theme-container, header, main, .section-card, button {
+  transition: background-color var(--theme-transition) ease, color var(--theme-transition) ease, box-shadow var(--theme-transition) ease;
+}
+
+/* Theme variable definitions. ThemeProvider wraps app with `.theme-<id>` */
+.theme-blueOcean {
+  --theme-primary: #0077B6;
+  --theme-primary-light: #00B4D8;
+  --theme-primary-dark: #03045E;
+  --theme-accent: #005f9e;
+  --theme-bg: #ffffff;
+  --theme-surface: #f8fbff;
+  --theme-text: #03045E;
+  --theme-onPrimary: #ffffff;
+}
+
+.theme-win11 {
+  --theme-primary: #2D89EF;
+  --theme-primary-light: #5B9BD5;
+  --theme-primary-dark: #1E4E8C;
+  --theme-accent: #1b66bf;
+  --theme-bg: #ffffff;
+  --theme-surface: #f7fbff;
+  --theme-text: #1E4E8C;
+  --theme-onPrimary: #ffffff;
+}
+
+.theme-kaliLinuxNight {
+  --theme-primary: #5C319E;    /* accent: Kali Purple */
+  --theme-primary-light: #1A2436; /* surface (card) */
+  --theme-primary-dark: #3B0F7A; /* darker accent variant */
+  --theme-accent: #8A4BD6;
+  --theme-bg: #0B1321; /* Deep Indigo (background) */
+  --theme-text: #E0E0E0; /* light gray text */
+  --theme-onPrimary: #ffffff;
+  --theme-surface: #1A2436;
+}
+
+.theme-macOsSunny {
+  --theme-primary: #FFD700;
+  --theme-primary-light: #FFECB3;
+  --theme-primary-dark: #FFC107;
+  --theme-accent: #ffb300;
+  --theme-bg: #ffffff;
+  --theme-surface: #fff9e6;
+  --theme-text: #3b3b3b;
+  --theme-onPrimary: #111827;
+}
+
+.theme-draculaPinkSoft {
+  --theme-primary: #FF79C6;
+  --theme-primary-light: #FF92D0;
+  --theme-primary-dark: #FF5EAB;
+  --theme-accent: #ff4fb0;
+  --theme-bg: #ffffff;
+  --theme-surface: #fff5fb;
+  --theme-text: #1f2937;
+  --theme-onPrimary: #111827;
+}
+
+/* Utility helpers to expose semantic theme tokens to Tailwind mappings */
+:root {
+  --unused: 0; /* placeholder for PostCSS/Tailwind processing */
+}
+
+/* Utility class to render sections/cards that follow theme surface color */
+.section-card {
+  background-color: var(--theme-surface, #ffffff);
+  color: var(--theme-text);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 10px rgba(2,6,23,0.06);
+}
+
+/* Improve focus outlines for accessibility */
+/* Prefer keyboard-visible focus rings to keep mouse click clean; remove heavy outlines */
+button:focus, input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/* Keyboard (tab) visible focus — soft theme-based ring */
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, .chat-input-wrapper:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.15); /* soft blue focus */
+  border-color: transparent;
+}
+
+/* Also remove any active state outlines (mouse click) that browsers may apply */
+button:active, input:active, textarea:active, select:active, .chat-input-wrapper:active {
+  outline: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/* Unified chat/input wrapper to make input visually integrated (no heavy border) */
+.chat-input-wrapper {
+  background: var(--theme-surface, #ffffff);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  box-shadow: none;
+  transition: box-shadow var(--theme-transition) ease, border-color var(--theme-transition) ease;
+}
+.chat-input-wrapper input,
+.chat-input-wrapper textarea {
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+}
+
+/* Ensure wrapper inputs do not show browser or Tailwind utility borders */
+.chat-input-wrapper input, .chat-input-wrapper textarea {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+.chat-input-wrapper:focus-within {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--theme-focus);
+}
+
+/* Remove default browser focus outline for form controls globally (we use the wrapper focus ring) */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Remove default browser borders/appearance for form controls to avoid focus black borders */
+input, textarea, select, button {
+  border: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Prevent browser inner focus border for buttons in Firefox */
+button::-moz-focus-inner { border: 0; }
+
+/* Remove default blue/yellow tap highlight on mobile */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Disable webkit-specific search/clear decorations that may render a rectangle */
+input::-webkit-search-decoration, input::-webkit-search-cancel-button, input::-webkit-search-results-button, input::-webkit-search-results-decoration, input::-webkit-clear-button {
+  -webkit-appearance: none;
+  display: none;
+}
+input::-webkit-contacts-auto-fill-button, input::-webkit-credentials-auto-fill-button {
+  -webkit-appearance: none;
+  display: none;
+}
+input::-webkit-inner-spin-button, input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Soft code block theme overrides */
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  background: transparent; /* keep header visually part of bubble */
+  padding: 0.25rem 0;
+}
+.code-header .font-medium { color: #cbd5e1; }
+.code-header button svg { stroke: #cbd5e1; }
+
+/* inner code area only — small rounded box inside the bubble */
+.code-inner {
+  background: rgba(15,23,32,0.75); /* softened dark inner box */
+  color: #e6eef6; /* soft off-white text */
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255,255,255,0.02);
+}
+
+/* tone down HLJS colors to muted greys and gentle accents */
+.hljs {
+  color: #d1d5db !important;
+  background: transparent !important;
+}
+.hljs-keyword, .hljs-selector-tag, .hljs-tag, .hljs-subst {
+  color: #a78bfa !important; /* soft purple */
+}
+.hljs-string, .hljs-title, .hljs-name, .hljs-type, .hljs-addition {
+  color: #60a5fa !important; /* soft blue */
+}
+.hljs-number, .hljs-symbol, .hljs-bullet, .hljs-link {
+  color: #f59e0b !important; /* soft amber */
+}
+.hljs-comment, .hljs-quote {
+  color: #9ca3af !important; /* muted gray for comments */
+}
+
+/* make header and surface spacing consistent when used from Chat.tsx */
+.code-header > div { display: flex; align-items: center; }
+.code-header button { background: transparent; border: none; padding: 6px; border-radius: 6px; }
+.code-header button:hover { background: rgba(255,255,255,0.02); }
+
+/* NotFound animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes floatY {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes pulseStar {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.animate-fadeIn { animation: fadeInUp 420ms cubic-bezier(.2,.9,.3,1) both; }
+.animate-float { animation: floatY 3.6s ease-in-out infinite; }
+.animate-pulseStar { animation: pulseStar 1.6s ease-in-out infinite; }
+.animation-delay-200 { animation-delay: 200ms; }
