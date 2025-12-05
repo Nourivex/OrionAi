@@ -2,46 +2,70 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Music, List, Image, Repeat, Palette, QrCode } from 'lucide-react';
 
-// Note: individual tool pages are stubs under `pages/tools/*` — you can replace them with full implementations later.
-
 const tools = [
-  { id: 'media-player', title: 'Media Player', desc: 'Play audio and video files quickly.', icon: Music, path: '/tools/media-player' },
-  { id: 'todo-list', title: 'Todo List', desc: 'Manage tasks and track progress.', icon: List, path: '/tools/todo-list' },
-  { id: 'mood-board', title: 'Mood Board', desc: 'Quick scratchpad for ideas and visuals.', icon: Image, path: '/tools/mood-board' },
-  { id: 'unit-converter', title: 'Unit Converter', desc: 'Convert units like length, mass, and temperature.', icon: Repeat, path: '/tools/unit-converter' },
-  { id: 'color-picker', title: 'Color Picker', desc: 'Pick colors and generate palettes (HEX/RGB).', icon: Palette, path: '/tools/color-picker' },
-  { id: 'qr-generator', title: 'QR Generator', desc: 'Generate QR codes from URLs or text.', icon: QrCode, path: '/tools/qr-generator' }
+    // Struktur data tools tetap sama
+    { id: 'media-player', title: 'Media Player', desc: 'Play audio and video files quickly.', icon: Music, path: '/tools/media-player' },
+    { id: 'todo-list', title: 'Todo List', desc: 'Manage tasks and track progress.', icon: List, path: '/tools/todo-list' },
+    { id: 'mood-board', title: 'Mood Board', desc: 'Quick scratchpad for ideas and visuals.', icon: Image, path: '/tools/mood-board' },
+    { id: 'unit-converter', title: 'Unit Converter', desc: 'Convert units like length, mass, and temperature.', icon: Repeat, path: '/tools/unit-converter' },
+    { id: 'color-picker', title: 'Color Picker', desc: 'Pick colors and generate palettes (HEX/RGB).', icon: Palette, path: '/tools/color-picker' },
+    { id: 'qr-generator', title: 'QR Generator', desc: 'Generate QR codes from URLs or text.', icon: QrCode, path: '/tools/qr-generator' }
 ];
 
 const Tools: React.FC = () => {
-  return (
-    <div className="p-6">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-semibold mb-4">Tools Dashboard</h1>
-        <p className="text-sm text-theme-text/70 mb-6">Quick access to utility tools for productivity and creativity.</p>
+    return (
+        <div className="p-6 md:p-10 bg-theme-bg min-h-screen">
+            <div className="max-w-7xl mx-auto">
+                
+                {/* 1. HEADER IMPROVEMENT */}
+                <h1 className="text-4xl font-extrabold mb-2 text-theme-primary">🛠️ Utilities Hub</h1>
+                <p className="text-lg text-theme-text/70 mb-8 max-w-2xl">A curated collection of productivity and creative tools integrated seamlessly into your workflow.</p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {tools.map(t => {
-            const Icon = t.icon;
-            return (
-              <Link to={t.path} key={t.id} className="group block p-4 bg-theme-surface border border-theme-primary-dark/5 rounded-lg hover:shadow-md transform hover:-translate-y-1 transition-all">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-theme-primary to-theme-accent flex items-center justify-center text-white">
-                    <Icon size={20} />
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium">{t.title}</div>
-                    <div className="text-xs text-theme-text/60">{t.desc}</div>
-                  </div>
+                {/* 2. CARD GRID (GRID DITINGKATKAN) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {tools.map(t => {
+                        const Icon = t.icon;
+                        return (
+                            <Link 
+                                to={t.path} 
+                                key={t.id} 
+                                // CARD STYLE V2: Shadow, Border, dan Transform di Hover
+                                className={`
+                                    group block p-6 h-full 
+                                    bg-theme-surface border border-theme-primary-dark/10 rounded-xl 
+                                    shadow-lg hover:shadow-2xl hover:border-theme-primary 
+                                    transform hover:scale-[1.01] transition-all duration-300 relative
+                                `}
+                            >
+                                {/* ICON & TITLE */}
+                                <div className="flex flex-col items-start">
+                                    {/* Icon Container: Lebih besar, solid, dan gradien */}
+                                    <div className="w-12 h-12 mb-4 rounded-xl bg-gradient-to-tr from-theme-primary to-theme-accent flex items-center justify-center text-white shadow-xl">
+                                        <Icon size={24} />
+                                    </div>
+                                    
+                                    {/* Title */}
+                                    <h2 className="text-xl font-bold mb-2 text-theme-text group-hover:text-theme-primary transition-colors">
+                                        {t.title}
+                                    </h2>
+                                    
+                                    {/* Description */}
+                                    <p className="text-sm text-theme-text/70">
+                                        {t.desc}
+                                    </p>
+                                </div>
+                                
+                                {/* Overlay/Indicator (Opsional, memberikan efek "Open" modern) */}
+                                <div className="absolute bottom-4 right-4 text-theme-primary/60 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                                    Open →
+                                </div>
+                            </Link>
+                        );
+                    })}
                 </div>
-                <div className="text-xs text-theme-text/50">Open</div>
-              </Link>
-            );
-          })}
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default Tools;
