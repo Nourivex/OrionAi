@@ -22,6 +22,7 @@ __pycache__/
 *.db
 *.sqlite3
 *.egg-info/
+.venv/
 
 # OS
 .DS_Store
