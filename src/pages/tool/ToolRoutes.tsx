@@ -7,6 +7,7 @@ import MoodBoard from '../tools/MoodBoard';
 import UnitConverter from '../tools/UnitConverter';
 import ColorPicker from '../tools/ColorPicker';
 import QRGenerator from '../tools/QRGenerator';
+import NovelGenerator from '../tools/NovelGenerator';
 import NotFound from '../NotFound';
 
 const ToolRoutes: React.FC = () => {
@@ -19,6 +20,7 @@ const ToolRoutes: React.FC = () => {
       <Route path="unit-converter" element={<UnitConverter />} />
       <Route path="color-picker" element={<ColorPicker />} />
       <Route path="qr-generator" element={<QRGenerator />} />
+      <Route path="novel-generator" element={<NovelGenerator />} />
       <Route path="/" element={<Navigate to="./" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

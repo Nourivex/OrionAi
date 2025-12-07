@@ -4,12 +4,13 @@ import { Music, List, Image, Repeat, Palette, QrCode } from 'lucide-react';
 
 const tools = [
     // Struktur data tools tetap sama
-    { id: 'media-player', title: 'Media Player', desc: 'Play audio and video files quickly.', icon: Music, path: '/tools/media-player' },
-    { id: 'todo-list', title: 'Todo List', desc: 'Manage tasks and track progress.', icon: List, path: '/tools/todo-list' },
-    { id: 'mood-board', title: 'Mood Board', desc: 'Quick scratchpad for ideas and visuals.', icon: Image, path: '/tools/mood-board' },
-    { id: 'unit-converter', title: 'Unit Converter', desc: 'Convert units like length, mass, and temperature.', icon: Repeat, path: '/tools/unit-converter' },
-    { id: 'color-picker', title: 'Color Picker', desc: 'Pick colors and generate palettes (HEX/RGB).', icon: Palette, path: '/tools/color-picker' },
-    { id: 'qr-generator', title: 'QR Generator', desc: 'Generate QR codes from URLs or text.', icon: QrCode, path: '/tools/qr-generator' }
+    { id: 'media-player', title: 'Media Player', desc: 'Play audio and video files quickly.', icon: Music, path: '/tool/media-player' },
+    { id: 'todo-list', title: 'Todo List', desc: 'Manage tasks and track progress.', icon: List, path: '/tool/todo-list' },
+    { id: 'mood-board', title: 'Mood Board', desc: 'Quick scratchpad for ideas and visuals.', icon: Image, path: '/tool/mood-board' },
+    { id: 'unit-converter', title: 'Unit Converter', desc: 'Convert units like length, mass, and temperature.', icon: Repeat, path: '/tool/unit-converter' },
+    { id: 'color-picker', title: 'Color Picker', desc: 'Pick colors and generate palettes (HEX/RGB).', icon: Palette, path: '/tool/color-picker' },
+    { id: 'qr-generator', title: 'QR Generator', desc: 'Generate QR codes from URLs or text.', icon: QrCode, path: '/tool/qr-generator' }
+    ,{ id: 'novel-generator', title: 'Novel & Story', desc: 'Generate novels or short stories using selectable Ollama models and save to folders.', icon: List, path: '/tool/novel-generator' }
 ];
 
 const Tools: React.FC = () => {

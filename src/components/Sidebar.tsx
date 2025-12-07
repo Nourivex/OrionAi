@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import SidebarHeader from './subSidebar/SidebarHeader';
+import SidebarChatList from './subSidebar/SidebarChatList';
+import SidebarModals from './subSidebar/SidebarModals';
+import SidebarCharacterList from './subSidebar/SidebarCharacterList';
+import SidebarTools from './subSidebar/SidebarTools';
+import toast from 'react-hot-toast';
 import { useTheme } from './ThemeProvider';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus,
   Search,
@@ -10,13 +16,18 @@ import {
   LogOut,
   MessageSquare,
   MessageSquareText as IconPesanText,
-  LayoutPanelLeft ,
+  LayoutPanelLeft,
   ChevronRight,
   X,
   Wrench,
-  Bot
+  Bot,
+  MoreHorizontal,
+  Pencil,
+  Share2,
+  Trash2
 } from 'lucide-react';
-import { chats as mockChats, characters as mockCharacters } from '../data/mockup_data';
+
+import { getConversations, createConversation, getCharacters, updateConversation, deleteConversation, Conversation, CharacterPersona } from '../api/api';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(true);
@@ -25,18 +36,98 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const { themeId } = useTheme();
 
-  const [chats, setChats] = useState(mockChats);
-  const [characters, setCharacters] = useState(mockCharacters);
+  const [chats, setChats] = useState<Conversation[]>([]);
+  const [characters, setCharacters] = useState<CharacterPersona[]>([]);
+  const location = useLocation();
+
+  // Context menu state
+  const [menuOpen, setMenuOpen] = useState<number | null>(null);
+  const [editModal, setEditModal] = useState<{ open: boolean; chat: Conversation | null }>({ open: false, chat: null });
+  const [shareModal, setShareModal] = useState<{ open: boolean; chat: Conversation | null }>({ open: false, chat: null });
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; chat: Conversation | null }>({ open: false, chat: null });
+  const [editTitle, setEditTitle] = useState('');
+
+  // Fetch recent conversations dan characters dari backend
+  useEffect(() => {
+    loadConversations();
+    getCharacters().then(data => setCharacters(data)).catch(() => setCharacters([]));
+  }, []);
+
+  // Update active states based on current route (conversation id or selected character)
+  useEffect(() => {
+    const path = location.pathname;
+
+    // Character chat route: /characterchat/:characterId
+    const charMatch = path.match(/^\/characterchat\/([a-zA-Z0-9-]+)$/);
+    if (charMatch) {
+      const charId = charMatch[1];
+      setCharacters(prev => prev.map(ch => ({ ...ch, isActive: ch.character_id === charId })));
+      setChats(prev => prev.map(c => ({ ...c, is_active: 0 })));
+      return;
+    }
+
+    // Conversation chat route: /chat/{id} (only one active)
+    const chatMatch = path.match(/^\/chat\/(\d+)$/);
+    if (chatMatch) {
+      const id = Number(chatMatch[1]);
+      setChats(prev => prev.map((c) => ({ ...c, is_active: c.id === id ? 1 : 0 })));
+      setCharacters(prev => prev.map(ch => ({ ...ch, isActive: false })));
+      return;
+    }
+
+    // New chat page: /chat (no id)
+    if (path === '/chat') {
+      setChats(prev => prev.map(c => ({ ...c, is_active: 0 })));
+      setCharacters(prev => prev.map(ch => ({ ...ch, isActive: false })));
+      return;
+    }
+
+    // All other routes: clear all active states
+    setChats(prev => prev.map(c => ({ ...c, is_active: 0 })));
+    setCharacters(prev => prev.map(ch => ({ ...ch, isActive: false })));
+  }, [location.pathname]);
+
+  const loadConversations = () => {
+    getConversations().then(data => {
+      // generate smart titles for new/generic conversations
+      const enhanced = data.map(conv => {
+        const isGeneric = !conv.title || conv.title.toLowerCase().includes('new chat') || conv.title.toLowerCase().includes('untitled');
+        if (!isGeneric) return conv;
+
+        // find first user-sent message or fallback to first message
+        const firstMsg = conv.messages?.find(m => m.type === 'sent') || conv.messages?.[0];
+        if (!firstMsg || !firstMsg.content) return conv;
+        const snippet = firstMsg.content.replace(/\s+/g, ' ').trim().slice(0, 48);
+        const nice = snippet.length >= 48 ? snippet.slice(0, 45).trim() + '...' : snippet;
+        return { ...conv, title: nice || 'New Chat' };
+      });
+      setChats(enhanced);
+    }).catch(() => setChats([]));
+  };
+
+  // Refresh conversations when route changes so sidebar reflects created/deleted conversations in real-time
+  useEffect(() => {
+    loadConversations();
+  }, [location.pathname]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClick = () => setMenuOpen(null);
+    if (menuOpen !== null) {
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [menuOpen]);
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
     if (!isOpen) setIsSearching(false);
   };
 
-  // Make sidebar collapsed by default on small screens
+  // Make sidebar collapsed by default on small/medium screens (mobile & tablet)
   useEffect(() => {
     const onResize = () => {
-      if (window.innerWidth < 768) {
+      if (window.innerWidth < 1024) {
         setIsOpen(false);
       } else {
         setIsOpen(true);
@@ -47,20 +138,75 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const handleNewChat = () => {
-    const newChat = {
-      id: Date.now(),
-      title: 'New Chat',
-      date: new Date().toISOString().split('T')[0],
-      isActive: true
-    };
-    setChats(prev => [newChat, ...prev.map(c => ({ ...c, isActive: false }))]);
-    navigate(`/chat/${newChat.id}`);
+  const handleNewChat = async () => {
+    // Open a new blank conversation UI without creating server-side resource yet.
+    // Conversation will be created on first message send (handled in ChatPage).
+    try {
+      navigate('/chat');
+      // optionally clear selection
+      setChats(prev => prev.map(c => ({ ...c, is_active: 0 })));
+    } catch (err) {
+      console.error('Failed to open new chat', err);
+    }
   };
 
   const handleSearchToggle = () => {
     setIsSearching(!isSearching);
     if (isSearching) setSearchQuery('');
+  };
+
+  // Context menu handlers
+  const openEditModal = (chat: Conversation) => {
+    setEditTitle(chat.title);
+    setEditModal({ open: true, chat });
+    setMenuOpen(null);
+  };
+
+  const openShareModal = (chat: Conversation) => {
+    setShareModal({ open: true, chat });
+    setMenuOpen(null);
+  };
+
+  const openDeleteModal = (chat: Conversation) => {
+    setDeleteModal({ open: true, chat });
+    setMenuOpen(null);
+  };
+
+  const handleEditSave = async () => {
+    if (!editModal.chat) return;
+    await updateConversation(editModal.chat.id, { title: editTitle });
+    setEditModal({ open: false, chat: null });
+    loadConversations();
+  };
+
+  const handleShare = () => {
+    if (!shareModal.chat) return;
+    const shareUrl = `${window.location.origin}/chat/${shareModal.chat.id}`;
+    navigator.clipboard.writeText(shareUrl);
+    setShareModal({ open: false, chat: null });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteModal.chat) return;
+    const id = deleteModal.chat.id;
+    try {
+      await deleteConversation(id);
+      setDeleteModal({ open: false, chat: null });
+      // Feedback ke user
+      try { toast.success('Percakapan dihapus.'); } catch { }
+
+      // Jika user sedang melihat conversation yang dihapus, redirect ke new chat
+      const path = location.pathname;
+      if (path === `/chat/${id}`) {
+        navigate('/chat');
+      }
+
+      // Refresh list
+      loadConversations();
+    } catch (err) {
+      console.error('Failed to delete conversation', err);
+      try { toast.error('Gagal menghapus percakapan'); } catch { }
+    }
   };
 
   const visibleChats = chats.slice(0, 3);
@@ -69,84 +215,21 @@ const Sidebar = () => {
     chat.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+
   return (
     <aside
-      className={`transition-all duration-300 ease-in-out ${isOpen ? 'w-80' : 'w-16'
-        } bg-gradient-to-b from-theme-bg via-theme-surface to-theme-bg text-theme-text h-full flex flex-col border-r border-theme-primary-dark/10 overflow-hidden`}
+      className={`transition-all duration-300 ease-in-out ${isOpen ? 'w-80' : 'w-16'} bg-gradient-to-b from-theme-bg via-theme-surface to-theme-bg text-theme-text h-full flex flex-col border-r border-theme-primary-dark/10 overflow-hidden`}
     >
       {/* Sidebar Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header - single block, toggle button always visible */}
-        <div className="p-4 border-b border-theme-primary-dark/10">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              {isOpen && (
-                <div className="text-xl font-bold bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(90deg, var(--theme-primary-light), var(--theme-accent))' }}>
-                  Orion Ai Studio
-                </div>
-              )}
-            </div>
-            <button
-              aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-              onClick={() => setIsOpen(prev => !prev)}
-              className="p-1 rounded-md hover:bg-theme-surface/60 transition-colors text-theme-text/80"
-              title={isOpen ? 'Collapse' : 'Expand'}
-            >
-              <LayoutPanelLeft size={18} />
-            </button>
-          </div>
-
-          {/* New Chat Button - show full when open, compact when collapsed */}
-          <div className="mt-0">
-            <div className="mt-0 flex items-center justify-center">
-              {isOpen ? (
-                <button
-                  onClick={handleNewChat}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-theme-primary/10 hover:bg-theme-primary/15 border border-theme-primary-dark/10 rounded-xl text-theme-primary font-medium transition-all duration-200 group"
-                >
-                  <Plus size={18} className="group-hover:rotate-90 transition-transform duration-200" />
-                  <span>New Chat</span>
-                </button>
-              ) : (
-                <button
-                  onClick={handleNewChat}
-                  aria-label="New Chat"
-                  className="w-10 h-10 flex items-center justify-center rounded-md bg-theme-primary/10 hover:bg-theme-primary/15 border border-theme-primary-dark/10 text-theme-primary transition-all duration-200 p-3"
-                >
-                  <Plus size={18} />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Search Section */}
-        {isOpen && (
-          <div className="px-4 py-3 border-b border-theme-primary-dark/10">
-            <div className="relative">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-theme-text/60"
-              />
-              <input
-                type="text"
-                placeholder="Search conversations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-theme-surface/60 border border-theme-primary-dark/10 rounded-lg text-theme-text placeholder-theme-text/60 focus:outline-none focus:ring-2 focus:ring-theme-primary/30 focus:border-transparent transition-all duration-200"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-theme-text/60 hover:text-theme-primary transition-colors"
-                  title="Clear search"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+        <SidebarHeader
+          isOpen={isOpen}
+          setIsOpen={setIsOpen}
+          handleNewChat={handleNewChat}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          isNewChatActive={location.pathname === '/chat'}
+        />
 
         {/* Chat History */}
         <div className="flex-1 overflow-y-auto px-2">
@@ -161,12 +244,16 @@ const Sidebar = () => {
               )}
               {hasMoreChats && (
                 isOpen ? (
-                  <button className="text-xs text-theme-primary hover:text-theme-primary/80 font-medium transition-colors" title="View all conversations">
+                  <button
+                    onClick={() => navigate('/conversations')}
+                    className="text-xs text-theme-primary hover:text-theme-primary/80 font-medium transition-colors"
+                    title="View all conversations"
+                  >
                     View All
                   </button>
                 ) : (
                   <button
-                    onClick={() => navigate('/chat')}
+                    onClick={() => navigate('/conversations')}
                     title="View all conversations"
                     aria-label="View all conversations"
                     className="p-2 rounded-md text-theme-text/60 hover:bg-theme-surface/60 hover:text-theme-primary transition-colors"
@@ -177,92 +264,58 @@ const Sidebar = () => {
               )}
             </div>
 
-            <div className="space-y-1">
-              {filteredChats.map((chat) => (
-                <div
-                  key={chat.id}
-                  onClick={() => {
-                    setChats(prev => prev.map(c => ({ ...c, isActive: c.id === chat.id })));
-                    navigate(`/chat/${chat.id}`);
-                  }}
-                  className={`flex items-center ${isOpen ? 'gap-3 px-3 py-2.5' : 'justify-center p-3'} rounded-lg cursor-pointer transition-all duration-200 group ${chat.isActive
-                    ? 'bg-theme-primary text-theme-onPrimary border border-theme-primary shadow-sm'
-                    : 'text-theme-text/80 hover:text-theme-primary hover:bg-theme-primary/10'
-                    }`}
-                >
-                  <IconPesanText size={16} className="flex-shrink-0" />
-                  {isOpen && (
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{chat.title}</div>
-                      <div className="text-xs text-theme-text/60 mt-0.5">{chat.date}</div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+            <SidebarChatList
+              isOpen={isOpen}
+              filteredChats={filteredChats}
+              menuOpen={menuOpen}
+              setMenuOpen={setMenuOpen}
+              openEditModal={openEditModal}
+              openShareModal={openShareModal}
+              openDeleteModal={openDeleteModal}
+              navigate={navigate}
+              IconPesanText={IconPesanText}
+              activeChatId={(() => {
+                const match = location.pathname.match(/^\/chat\/(\d+)$/);
+                return match ? Number(match[1]) : null;
+              })()}
+            />
 
-            {/* Memory Bank & Tools */}
-            <div className="mt-6">
-              <div className="space-y-1">
-                <button onClick={() => navigate('/memory')} className={`flex items-center ${isOpen ? 'gap-3 px-3 py-2.5' : 'justify-center p-3'} w-full rounded-lg text-theme-text/80 hover:text-theme-primary hover:bg-theme-surface/60 transition-all duration-200 group`}>
-                  <Brain size={16} className="flex-shrink-0" />
-                  {isOpen && <span className="font-medium">Memory Bank</span>}
-                </button>
-                <button onClick={() => navigate('/tool')} className={`flex items-center ${isOpen ? 'gap-3 px-3 py-2.5' : 'justify-center p-3'} w-full rounded-lg text-theme-text/80 hover:text-theme-primary hover:bg-theme-surface/60 transition-all duration-200 group`}>
-                  <Wrench size={16} className="flex-shrink-0" />
-                  {isOpen && <span className="font-medium">Tools</span>}
-                </button>
-              </div>
-            </div>
+            <SidebarTools
+              isOpen={isOpen}
+              navigate={navigate}
+              Brain={Brain}
+              Wrench={Wrench}
+              isMemoryActive={location.pathname === '/memory'}
+              isToolsActive={location.pathname === '/tool'}
+            />
 
             {/* Characters Section */}
-            <div className="mt-6">
-              {isOpen && (
-                <div className="px-2 py-3 text-xs font-semibold text-theme-text/60 uppercase tracking-wider">
-                  Characters
-                </div>
-              )}
-              <div className="space-y-2">
-                {characters.map((character) => (
-                  <div
-                    key={character.id}
-                    onClick={() => {
-                      setCharacters(prev => prev.map(ch => ({ ...ch, isActive: ch.id === character.id })));
-                      navigate('/chat');
-                    }}
-                    className={`flex items-center ${isOpen ? 'gap-3 px-3 py-2.5' : 'justify-center p-3'} rounded-lg cursor-pointer transition-all duration-200 group ${character.isActive
-                      ? 'bg-theme-primary text-theme-onPrimary border border-theme-primary'
-                      : 'text-theme-text/80 hover:text-theme-accent hover:bg-theme-primary/10'
-                      }`}
-                  >
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundImage: 'linear-gradient(90deg, var(--theme-primary), var(--theme-accent))' }}>
-                      <Bot size={12} className="text-theme-onPrimary" />
-                    </div>
-                    {isOpen && (
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">{character.name}</div>
-                        <div className="text-xs text-theme-text/60 mt-0.5">{character.role}</div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <SidebarCharacterList
+              isOpen={isOpen}
+              characters={characters}
+              navigate={navigate}
+              Plus={Plus}
+              Bot={Bot}
+            />
           </div>
         </div>
 
         {/* Bottom Sections */}
         <div className="border-t border-theme-primary-dark/10">
           {/* Memory Bank & Tools */}
-            <div className="mt-6">
-              <div className="space-y-1">
-                {!isOpen && (
-                  <button onClick={() => navigate('/settings')} title="Settings" className="w-full flex items-center justify-center p-4 rounded-lg text-theme-text/80 hover:text-theme-primary hover:bg-theme-surface/60 transition-colors">
-                    <Settings size={18} />
-                  </button>
-                )}
-              </div>
+          <div className="mt-6">
+            <div className="space-y-1">
+              {!isOpen && (
+                <button
+                  onClick={() => navigate('/settings')}
+                  title="Settings"
+                  className={`w-full flex items-center justify-center p-4 rounded-lg transition-colors ${location.pathname === '/settings' ? 'bg-theme-primary text-theme-onPrimary' : 'text-theme-text/80 hover:text-theme-primary hover:bg-theme-surface/60'}`}
+                >
+                  <Settings size={18} />
+                </button>
+              )}
             </div>
+          </div>
 
           {/* Profile Section */}
           <div className="px-4 py-4 border-t border-theme-primary-dark/10">
@@ -272,8 +325,8 @@ const Sidebar = () => {
                   <User size={16} className="text-theme-onPrimary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-theme-onPrimary">John Developer</div>
-                  <div className="text-xs text-theme-text/60">Premium Plan</div>
+                  <div className="text-sm font-medium text-theme-onPrimary">Lycus Bendln</div>
+                  <div className="text-xs text-theme-text/60">Author</div>
                 </div>
                 <button onClick={() => navigate('/settings')} title="Settings" className="p-1.5 rounded-md hover:bg-theme-surface/60 transition-colors">
                   <Settings size={16} className="text-theme-text/60 group-hover:text-theme-primary transition-colors" />
@@ -291,6 +344,20 @@ const Sidebar = () => {
           </div>
         </div>
       </div>
+
+      <SidebarModals
+        editModal={editModal}
+        setEditModal={setEditModal}
+        editTitle={editTitle}
+        setEditTitle={setEditTitle}
+        handleEditSave={handleEditSave}
+        shareModal={shareModal}
+        setShareModal={setShareModal}
+        handleShare={handleShare}
+        deleteModal={deleteModal}
+        setDeleteModal={setDeleteModal}
+        handleDelete={handleDelete}
+      />
     </aside>
   );
 };

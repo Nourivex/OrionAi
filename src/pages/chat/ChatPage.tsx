@@ -3,20 +3,18 @@ import { useParams } from 'react-router-dom';
 import ChatHeader from './ChatHeader';
 import ChatInput from './ChatInput';
 import MessageList from './MessageList';
-import MessageBubble, { Message } from './MessageBubble';
-import { conversations } from '../../data/mockup_data';
+import { sendChat, getConversation, createConversation, addMessageToConversation, Conversation, ConversationMessage } from '../../api/api';
 
 const ChatPage: React.FC = () => {
     const params = useParams();
     const routeId = params.id ? parseInt(params.id, 10) : undefined;
-    const convFromData = conversations.find(c => c.id === routeId);
-    const initialConv = convFromData || conversations.find(c => c.isActive) || conversations[0];
-    const [messages, setMessages] = useState<Message[]>((initialConv && (initialConv.messages as unknown as Message[])) || []);
-    const [isNewConversation, setIsNewConversation] = useState<boolean>(!convFromData);
+    const [conversation, setConversation] = useState<Conversation | null>(null);
+    const [messages, setMessages] = useState<ConversationMessage[]>([]);
+    const [isNewConversation, setIsNewConversation] = useState<boolean>(!routeId);
 
     const [inputMessage, setInputMessage] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const timerRef = useRef<number | null>(null);
+    const abortRef = useRef<AbortController | null>(null);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -25,20 +23,35 @@ const ChatPage: React.FC = () => {
 
     useEffect(() => {
         return () => {
-            if (timerRef.current) clearTimeout(timerRef.current);
+            if (abortRef.current) abortRef.current.abort();
         };
     }, []);
 
     useEffect(() => {
-        const id = params.id ? parseInt(params.id, 10) : undefined;
-        const conv = conversations.find(c => c.id === id);
-        if (conv) {
-            setMessages(conv.messages as unknown as Message[]);
-            setIsNewConversation(false);
-        } else {
-            setMessages([]);
-            setIsNewConversation(true);
+        let mounted = true;
+        async function loadConv() {
+            const id = params.id ? parseInt(params.id, 10) : undefined;
+            if (id) {
+                try {
+                    const conv = await getConversation(id);
+                    if (!mounted) return;
+                    setConversation(conv);
+                    setMessages(conv.messages || []);
+                    setIsNewConversation(false);
+                } catch (err) {
+                    // conversation not found or error -> treat as new
+                    setConversation(null);
+                    setMessages([]);
+                    setIsNewConversation(true);
+                }
+            } else {
+                setConversation(null);
+                setMessages([]);
+                setIsNewConversation(true);
+            }
         }
+        loadConv();
+        return () => { mounted = false; };
     }, [params.id]);
 
     const suggestions = [
@@ -51,42 +64,94 @@ const ChatPage: React.FC = () => {
     const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
 
     const stopGeneration = () => {
-        if (timerRef.current) {
-            clearTimeout(timerRef.current);
-            timerRef.current = null;
+        if (abortRef.current) {
+            abortRef.current.abort();
+            abortRef.current = null;
         }
         setIsTyping(false);
     };
 
-    const handleSendMessage = (e: React.FormEvent) => {
+    const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputMessage.trim() || isTyping) return;
-
-        const newMsg: Message = {
+        const userMsg: ConversationMessage = {
             id: Date.now(),
             type: 'sent',
             content: inputMessage,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             reactions: { likes: 0, dislikes: 0 },
+            tool_action: null,
         };
 
-        setMessages(prev => [...prev, newMsg]);
+        // Optimistically show user's message
+        setMessages(prev => [...prev, userMsg]);
         setIsNewConversation(false);
+        const promptText = inputMessage;
         setInputMessage('');
 
         setIsTyping(true);
-        timerRef.current = window.setTimeout(() => {
-            const ai: Message = {
+        abortRef.current = new AbortController();
+        try {
+            const res = await sendChat(promptText, "orion-12b-it:latest", conversation?.id);
+            // Pastikan content AI selalu dari response, bukan tool_action
+            const aiMsg: ConversationMessage = {
                 id: Date.now() + 1,
                 type: 'received',
-                content: 'Your diagnosis is correct. The "Out of Memory" error points directly to a serious memory leak. Focus on asynchronous operations and closures.',
+                content: typeof res.response === 'string' ? res.response : '',
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 reactions: { likes: 0, dislikes: 0 },
+                tool_action: res.tool_action || null,
             };
-            setMessages(prev => [...prev, ai]);
+
+            // Persist messages to backend
+            if (conversation && conversation.id) {
+                try {
+                    await addMessageToConversation(conversation.id, userMsg);
+                    await addMessageToConversation(conversation.id, aiMsg);
+                    const updated = await getConversation(conversation.id);
+                    setConversation(updated);
+                    setMessages(updated.messages || []);
+                } catch (err) {
+                    console.error('Error persisting messages', err);
+                    // fallback: show ai message locally
+                    setMessages(prev => [...prev, aiMsg]);
+                }
+            } else {
+                // create new conversation with both messages, then navigate/replace URL
+                try {
+                    const payload: Omit<Conversation, 'id'> = {
+                        title: 'New Chat',
+                        smartTags: [],
+                        is_active: 1,
+                        last_updated: new Date().toISOString(),
+                        messages: [userMsg, aiMsg],
+                    };
+                    const created = await createConversation(payload);
+                    const full = await getConversation(created.id);
+                    setConversation(full);
+                    setMessages(full.messages || []);
+                    // update URL without reload
+                    window.history.replaceState({}, '', `/chat/${full.id}`);
+                } catch (err) {
+                    console.error('Error creating conversation', err);
+                    setMessages(prev => [...prev, aiMsg]);
+                }
+            }
+        } catch (err: any) {
+            if (err.name !== 'AbortError') {
+                const errMsg: ConversationMessage = {
+                    id: Date.now() + 1,
+                    type: 'received',
+                    content: '⚠️ Gagal menghubungi AI. Pastikan backend berjalan.',
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    reactions: { likes: 0, dislikes: 0 },
+                };
+                setMessages(prev => [...prev, errMsg]);
+            }
+        } finally {
             setIsTyping(false);
-            timerRef.current = null;
-        }, 1400);
+            abortRef.current = null;
+        }
     };
 
     const handleVoiceInput = () => console.log('voice');

@@ -164,8 +164,3 @@ export const conversations = [
 // Keep lightweight lists for sidebar / navigation (map to conversation ids)
 export const chats = conversations.map(c => ({ id: c.id, title: c.title, isActive: c.isActive, lastUpdated: c.lastUpdated }));
 
-export const characters = [
-	{ id: 1, name: 'Sarah - AI Assistant', role: 'Professional Assistant', isActive: false, avatarGradient: 'var(--theme-primary), var(--theme-accent)' },
-	{ id: 2, name: 'Max - Developer Mentor', role: 'Code Expert', isActive: true, avatarGradient: '#00B4D8, #03045E' },
-	{ id: 3, name: 'Luna - Creative Writer', role: 'Storytelling Pro', isActive: false, avatarGradient: 'var(--theme-accent), #FF79C6' },
-];
